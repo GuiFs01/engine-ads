@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ads Engine — Simples (Redirect Automático)</title>
+  <style>
+    :root{
+      --bg:#07080a;
+      --panel:#0f1316;
+      --muted:#9aa3b2;
+      --accent:#4dabf7;
+      --card:#111317;
+      --text:#eaf4ff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #05060a 0%, #081021 100%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .wrap{
+      width:100%;
+      max-width:980px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      border-radius:12px;
+      padding:18px;
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap:18px;
+    }
+    @media (max-width:900px){ .wrap{ grid-template-columns: 1fr } }
+    .panel{
+      background:var(--panel);
+      border-radius:10px;
+      padding:14px;
+      box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    h1{ font-size:18px; margin:0 0 10px; color:var(--accent) }
+    p.sub{ margin:0 0 12px; color:var(--muted); font-size:13px }
+    label{ display:block; font-size:13px; color:#cbd7e6; margin-bottom:6px }
+    input[type="text"]{
+      width:100%;
+      padding:12px 10px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:var(--card);
+      color:var(--text);
+      font-size:14px;
+    }
+    .buttons{ display:flex; gap:10px; margin-top:12px; }
+    button{
+      flex:1;
+      padding:10px 12px;
+      border-radius:8px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+      font-size:14px;
+    }
+    .btn-preview{ background:linear-gradient(90deg,#263447,#334b61); color:#eaf4ff }
+    .btn-export{ background:linear-gradient(90deg,#0b6037,#1f8a4d); color:#fff }
+    .btn-reset{ background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted) }
+    .note{ margin-top:10px; font-size:12px; color:var(--muted) }
+    .preview-wrap{ display:flex; flex-direction:column; gap:12px }
+    .preview-box{ height:480px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.03); background:#000; }
+    iframe{ width:100%; height:100%; border:0; display:block; background:#000 }
+    .status{ font-size:13px; color:var(--muted); margin-top:10px }
+    footer{ grid-column: 1 / -1; text-align:center; margin-top:10px; color:var(--muted); font-size:13px }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Ads Engine — Simples</h1>
+      <p class="sub">Cole os dois links: anúncio (iframe) e link final (ex.: APK). Em seguida clique em Visualizar ou Exportar HTML.</p>
+
+      <div style="margin-bottom:12px">
+        <label for="adUrl">URL do anúncio (iframe src)</label>
+        <input id="adUrl" type="text" placeholder="https://exemplo.com/ad_page" value="https://woofbeginner.com/hua62mrv5u?key=812b45cb380814785aa1d7ca79d3d84c" />
+      </div>
+
+      <div style="margin-bottom:6px">
+        <label for="downloadUrl">URL de download final (ex: APK)</label>
+        <input id="downloadUrl" type="text" placeholder="https://exemplo.com/meu_arquivo.apk" value="https://www.mediafire.com/file/g80muc25okfd70k/LEYENDS_3_v.2.5.0.apk/file" />
+      </div>
+
+      <div class="buttons">
+        <button class="btn-preview" id="btnPreview">🔍 Visualizar</button>
+        <button class="btn-export" id="btnExport">💾 Exportar HTML</button>
+        <button class="btn-reset" id="btnReset">🔄 Limpar</button>
+      </div>
+
+      <p class="note">Export gera um único HTML auto-contido (overlay + contador 10s + redirect automático ao fim da contagem).</p>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel preview-wrap">
+      <h1 style="font-size:15px; margin-bottom:6px; color:var(--accent)">Preview</h1>
+      <p class="sub">O preview executa o HTML gerado num iframe sandbox. Alguns anúncios podem não carregar no preview por políticas externas; abra o arquivo exportado localmente se necessário.</p>
+      <div class="preview-box">
+        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-top:6px">Se o anúncio não aparecer no preview, exporte e abra o arquivo gerado no seu PC.</p>
+    </div>
+
+    <footer>Versão redirect • Minimal • Tempo padrão 10s</footer>
+  </div>
+
+  <script>
+    // ELEMENTOS
+    const adInput = document.getElementById('adUrl');
+    const dlInput = document.getElementById('downloadUrl');
+    const btnPreview = document.getElementById('btnPreview');
+    const btnExport = document.getElementById('btnExport');
+    const btnReset = document.getElementById('btnReset');
+    const previewFrame = document.getElementById('previewFrame');
+    const statusEl = document.getElementById('status');
+
+    // CONFIG
+    const WAIT_SECONDS = 10; // fixo e simples
+    const AD_TAG = 'PUBLICIDADE';
+    const PRODUCT_NAME = 'Arquivo';
+
+    let lastPreviewObjectUrl = null;
+
+    function showStatus(msg, ms = 3500) {
+      statusEl.textContent = msg;
+      setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ''; }, ms);
+    }
+
+    function isValidUrl(s) {
+      try {
+        const u = new URL(s);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Constroi o HTML final de forma segura usando JSON.stringify para inserir valores no script
+    function buildFinalHtml(adUrl, downloadUrl) {
+      // Codifica em base64 com fallback
+      let encoded = '';
+      try {
+        encoded = btoa(downloadUrl);
+      } catch (e) {
+        encoded = btoa(unescape(encodeURIComponent(downloadUrl)));
+      }
+
+      // Inserimos valores usando JSON.stringify para garantir escape correto dentro do script
+      const AD_URL_JS = JSON.stringify(adUrl);
+      const ENCODED_JS = JSON.stringify(encoded);
+      const WAIT_JS = JSON.stringify(WAIT_SECONDS);
+      const PRODUCT_JS = JSON.stringify(PRODUCT_NAME);
+      const ADTAG_JS = JSON.stringify(AD_TAG);
+
+      // HTML final (auto-contido) - redirect automático quando contador chega a 0
+      const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Download Seguro - Aguarde</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI, Roboto, Arial, sans-serif}
+  body{background:#0b0b0c;color:#fff;overflow:hidden;height:100vh}
+  #ad-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.98);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999}
+  .timer-top-right{position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);padding:10px 16px;border-radius:40px;display:flex;gap:10px;align-items:center}
+  .spinner{width:18px;height:18px;border:3px solid #4dabf7;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{100%{transform:rotate(360deg)}}
+  .ad-box{width:92%;max-width:440px;height:360px;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid #222}
+  .ad-iframe{width:100%;height:100%;border:0}
+  .ad-tag{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:18px;color:#9aa3b2;font-size:12px}
+  #main-site{opacity:0;transform:translateY(18px);transition:all .5s;max-width:520px;margin:80px auto;text-align:center;padding:20px}
+  .card{background:#111;border-radius:14px;padding:30px;border:1px solid #222}
+  .btn-ready{display:block;margin:20px auto 0;background:linear-gradient(90deg,#1971c2,#4dabf7);color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:18px}
+  .show{opacity:1;transform:translateY(0)}
+  .hidden{display:none!important}
+  @media(max-width:520px){ .ad-box{height:300px} }
+</style>
+</head>
+<body>
+  <div id="ad-overlay">
+    <div class="timer-top-right">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>Visualize o anúncio — <strong id="seconds"></strong>s</div>
+    </div>
+
+    <div class="ad-box">
+      <iframe id="ad-frame" class="ad-iframe" src=${AD_URL_JS} title="Anúncio" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" scrolling="auto"></iframe>
+      <div class="ad-tag">${escapeHtml(AD_TAG)}</div>
+    </div>
+
+    <div style="margin-top:18px;color:#9aa3b2;font-size:13px">O site será aberto automaticamente após o anúncio.</div>
+  </div>
+
+  <div id="main-site">
+    <div class="card">
+      <h1 style="color:#4CAF50;margin-bottom:8px">✅ DOWNLOAD LIBERADO</h1>
+      <h2 style="color:#fff;margin-bottom:6px">${escapeHtml(PRODUCT_NAME)}</h2>
+      <p style="color:#9aa3b2">Caso o redirecionamento falhe, você pode clicar no botão abaixo.</p>
+      <a id="download-link" class="btn-ready" href="#" target="_blank" rel="noopener noreferrer">📥 Ir para o site</a>
+      <p style="color:#7b8894;font-size:13px;margin-top:10px">Se nada acontecer, permita popups ou abra o link manualmente.</p>
+    </div>
+  </div>
+
+<script>
+  (function(){
+    const secondsToWait = ${WAIT_JS};
+    const encodedLink = ${ENCODED_JS};
+    const secondsEl = document.getElementById('seconds');
+    const overlay = document.getElementById('ad-overlay');
+    const site = document.getElementById('main-site');
+    const dlBtn = document.getElementById('download-link');
+
+    // Inicializa contador no carregamento
+    let timeLeft = Number(secondsToWait) || 10;
+    secondsEl.textContent = timeLeft;
+
+    const countdown = setInterval(() => {
+      timeLeft--;
+      secondsEl.textContent = timeLeft;
+      if (timeLeft <= 3) secondsEl.style.color = '#ff6b6b';
+      if (timeLeft <= 0) {
+        clearInterval(countdown);
+        try {
+          const real = atob(encodedLink);
+          // Tenta abrir em nova aba; se bloqueado, faz redirect na mesma aba
+          const newWin = window.open(real, '_blank');
+          if (!newWin) {
+            // Popup bloqueado — redireciona na mesma aba
+            window.location.href = real;
+            return;
+          }
+          // Se abriu nova aba, também atualiza a interface local (opcional)
+          overlay.style.opacity = '0';
+          setTimeout(()=>{
+            overlay.classList.add('hidden');
+            site.classList.add('show');
+            document.body.style.overflow = 'auto';
+            window.scrollTo({top:0,behavior:'smooth'});
+          },450);
+        } catch (e) {
+          // Em caso de erro, mostra botão com link seguro
+          dlBtn.href = '#';
+          dlBtn.onclick = () => { alert('Erro ao carregar link de download'); return false; };
+          overlay.style.opacity = '0';
+          setTimeout(()=>{
+            overlay.classList.add('hidden');
+            site.classList.add('show');
+            document.body.style.overflow = 'auto';
+            window.scrollTo({top:0,behavior:'smooth'});
+          },450);
+        }
+      }
+    },1000);
+  })();
+<\/script>
+</body>
+</html>`;
+
+      return html;
+    }
+
+    // Limpa o preview objectUrl anterior
+    function revokeLastPreview() {
+      if (lastPreviewObjectUrl) {
+        try { URL.revokeObjectURL(lastPreviewObjectUrl); } catch (e) {}
+        lastPreviewObjectUrl = null;
+      }
+    }
+
+    // Preview: cria Blob e define iframe.src = objectUrl
+    btnPreview.addEventListener('click', () => {
+      const ad = adInput.value.trim();
+      const dl = dlInput.value.trim();
+      if (!isValidUrl(ad) || !isValidUrl(dl)) {
+        showStatus('Erro: ambos os links devem ser URLs válidas (https://...)');
+        return;
+      }
+      const html = buildFinalHtml(ad, dl);
+      revokeLastPreview();
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      lastPreviewObjectUrl = url;
+      previewFrame.src = url;
+      showStatus('Preview gerado. Se o anúncio não carregar, exporte e abra o ficheiro localmente.');
+    });
+
+    // Export: gera arquivo e dispara download
+    btnExport.addEventListener('click', () => {
+      const ad = adInput.value.trim();
+      const dl = dlInput.value.trim();
+      if (!isValidUrl(ad) || !isValidUrl(dl)) {
+        showStatus('Erro: ambos os links devem ser URLs válidas (https://...)');
+        return;
+      }
+      const html = buildFinalHtml(ad, dl);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = 'download_page_' + Date.now() + '.html';
+      a.href = url;
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      try { URL.revokeObjectURL(url); } catch(e) {}
+      showStatus('Ficheiro exportado: ' + safeName, 5000);
+    });
+
+    // Reset campos + preview
+    btnReset.addEventListener('click', () => {
+      adInput.value = '';
+      dlInput.value = '';
+      revokeLastPreview();
+      previewFrame.srcdoc = '<!doctype html><html><body style="background:#000;color:#9aa3b2;display:flex;align-items:center;justify-content:center;height:100%"><div>Preview limpo</div></body></html>';
+      showStatus('Campos limpos');
+    });
+
+    // Preview inicial
+    previewFrame.srcdoc = '<!doctype html><html><body style="background:#000;color:#9aa3b2;display:flex;align-items:center;justify-content:center;height:100%"><div>Clique em Visualizar para gerar o preview</div></body></html>';
+
+    // Revoga quando sair da página
+    window.addEventListener('unload', () => revokeLastPreview());
+  </script>
+</body>
+</html>
