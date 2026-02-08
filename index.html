@@ -99,7 +99,7 @@
         <button class="btn-reset" id="btnReset">🔄 Limpar</button>
       </div>
 
-      <p class="note">Export gera um único HTML auto-contido (overlay + contador 10s + redirect automático ao fim da contagem).</p>
+      <p class="note">Export gera um único HTML auto-contido (overlay + contador 25s + botão de download manual ao fim).</p>
 
       <div class="status" id="status"></div>
     </div>
@@ -113,7 +113,7 @@
       <p style="font-size:12px; color:var(--muted); margin-top:6px">Se o anúncio não aparecer no preview, exporte e abra o arquivo gerado no seu PC.</p>
     </div>
 
-    <footer>Versão redirect • Minimal • Tempo padrão 10s</footer>
+    <footer>Versão Manual • 25 segundos • Anúncio Maior • Sem Redirect Automático</footer>
   </div>
 
   <script>
@@ -126,8 +126,8 @@
     const previewFrame = document.getElementById('previewFrame');
     const statusEl = document.getElementById('status');
 
-    // CONFIG
-    const WAIT_SECONDS = 10; // fixo e simples
+    // CONFIG - ALTERADO PARA 25 SEGUNDOS
+    const WAIT_SECONDS = 25;
     const AD_TAG = 'PUBLICIDADE';
     const PRODUCT_NAME = 'Arquivo';
 
@@ -156,9 +156,8 @@
         .replace(/'/g, '&#39;');
     }
 
-    // Constroi o HTML final de forma segura usando JSON.stringify para inserir valores no script
+    // Constroi o HTML final com as correções
     function buildFinalHtml(adUrl, downloadUrl) {
-      // Codifica em base64 com fallback
       let encoded = '';
       try {
         encoded = btoa(downloadUrl);
@@ -166,14 +165,12 @@
         encoded = btoa(unescape(encodeURIComponent(downloadUrl)));
       }
 
-      // Inserimos valores usando JSON.stringify para garantir escape correto dentro do script
       const AD_URL_JS = JSON.stringify(adUrl);
       const ENCODED_JS = JSON.stringify(encoded);
       const WAIT_JS = JSON.stringify(WAIT_SECONDS);
       const PRODUCT_JS = JSON.stringify(PRODUCT_NAME);
       const ADTAG_JS = JSON.stringify(AD_TAG);
 
-      // HTML final (auto-contido) - redirect automático quando contador chega a 0
       const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -184,18 +181,19 @@
   *{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI, Roboto, Arial, sans-serif}
   body{background:#0b0b0c;color:#fff;overflow:hidden;height:100vh}
   #ad-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.98);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999}
-  .timer-top-right{position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);padding:10px 16px;border-radius:40px;display:flex;gap:10px;align-items:center}
+  .timer-top-right{position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);padding:10px 16px;border-radius:40px;display:flex;gap:10px;align-items:center;z-index:10000}
   .spinner{width:18px;height:18px;border:3px solid #4dabf7;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite}
   @keyframes spin{100%{transform:rotate(360deg)}}
-  .ad-box{width:92%;max-width:440px;height:360px;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid #222}
+  .ad-box{width:95%;max-width:800px;height:500px;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:2px solid #222}
   .ad-iframe{width:100%;height:100%;border:0}
   .ad-tag{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:18px;color:#9aa3b2;font-size:12px}
-  #main-site{opacity:0;transform:translateY(18px);transition:all .5s;max-width:520px;margin:80px auto;text-align:center;padding:20px}
+  #main-site{opacity:0;transform:translateY(18px);transition:all .5s;max-width:520px;margin:80px auto;text-align:center;padding:20px;display:none}
   .card{background:#111;border-radius:14px;padding:30px;border:1px solid #222}
-  .btn-ready{display:block;margin:20px auto 0;background:linear-gradient(90deg,#1971c2,#4dabf7);color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:18px}
-  .show{opacity:1;transform:translateY(0)}
+  .btn-ready{display:block;margin:20px auto 0;background:linear-gradient(90deg,#1971c2,#4dabf7);color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:18px;cursor:pointer}
+  .show{opacity:1;transform:translateY(0);display:block}
   .hidden{display:none!important}
-  @media(max-width:520px){ .ad-box{height:300px} }
+  .download-instruction{margin-top:18px;color:#9aa3b2;font-size:13px}
+  @media(max-width:520px){ .ad-box{height:400px} }
 </style>
 </head>
 <body>
@@ -206,19 +204,19 @@
     </div>
 
     <div class="ad-box">
-      <iframe id="ad-frame" class="ad-iframe" src=${AD_URL_JS} title="Anúncio" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" scrolling="auto"></iframe>
+      <iframe id="ad-frame" class="ad-iframe" src=${AD_URL_JS} title="Anúncio"></iframe>
       <div class="ad-tag">${escapeHtml(AD_TAG)}</div>
     </div>
 
-    <div style="margin-top:18px;color:#9aa3b2;font-size:13px">O site será aberto automaticamente após o anúncio.</div>
+    <div class="download-instruction">Após a contagem, clique no botão "Baixar Agora"</div>
   </div>
 
   <div id="main-site">
     <div class="card">
       <h1 style="color:#4CAF50;margin-bottom:8px">✅ DOWNLOAD LIBERADO</h1>
       <h2 style="color:#fff;margin-bottom:6px">${escapeHtml(PRODUCT_NAME)}</h2>
-      <p style="color:#9aa3b2">Caso o redirecionamento falhe, você pode clicar no botão abaixo.</p>
-      <a id="download-link" class="btn-ready" href="#" target="_blank" rel="noopener noreferrer">📥 Ir para o site</a>
+      <p style="color:#9aa3b2">Obrigado por visualizar o anúncio. Clique no botão abaixo para acessar o download.</p>
+      <a id="download-link" class="btn-ready" href="#" target="_blank" rel="noopener noreferrer">📥 Baixar Agora</a>
       <p style="color:#7b8894;font-size:13px;margin-top:10px">Se nada acontecer, permita popups ou abra o link manualmente.</p>
     </div>
   </div>
@@ -232,47 +230,51 @@
     const site = document.getElementById('main-site');
     const dlBtn = document.getElementById('download-link');
 
-    // Inicializa contador no carregamento
-    let timeLeft = Number(secondsToWait) || 10;
+    let timeLeft = Number(secondsToWait) || 25;
     secondsEl.textContent = timeLeft;
+    let realUrl = '';
+
+    // Decodificar URL
+    try {
+      realUrl = atob(encodedLink);
+      dlBtn.href = realUrl;
+    } catch (e) {
+      realUrl = '#';
+      dlBtn.href = '#';
+    }
 
     const countdown = setInterval(() => {
       timeLeft--;
       secondsEl.textContent = timeLeft;
+      
       if (timeLeft <= 3) secondsEl.style.color = '#ff6b6b';
+      
       if (timeLeft <= 0) {
         clearInterval(countdown);
-        try {
-          const real = atob(encodedLink);
-          // Tenta abrir em nova aba; se bloqueado, faz redirect na mesma aba
-          const newWin = window.open(real, '_blank');
-          if (!newWin) {
-            // Popup bloqueado — redireciona na mesma aba
-            window.location.href = real;
-            return;
-          }
-          // Se abriu nova aba, também atualiza a interface local (opcional)
-          overlay.style.opacity = '0';
-          setTimeout(()=>{
-            overlay.classList.add('hidden');
-            site.classList.add('show');
-            document.body.style.overflow = 'auto';
-            window.scrollTo({top:0,behavior:'smooth'});
-          },450);
-        } catch (e) {
-          // Em caso de erro, mostra botão com link seguro
-          dlBtn.href = '#';
-          dlBtn.onclick = () => { alert('Erro ao carregar link de download'); return false; };
-          overlay.style.opacity = '0';
-          setTimeout(()=>{
-            overlay.classList.add('hidden');
-            site.classList.add('show');
-            document.body.style.overflow = 'auto';
-            window.scrollTo({top:0,behavior:'smooth'});
-          },450);
-        }
+        // Esconde overlay e mostra site com botão manual
+        overlay.style.opacity = '0';
+        setTimeout(()=>{
+          overlay.classList.add('hidden');
+          site.classList.add('show');
+          document.body.style.overflow = 'auto';
+          window.scrollTo({top:0,behavior:'smooth'});
+        },450);
       }
     },1000);
+    
+    // Fallback: se houver problema com o contador
+    setTimeout(() => {
+      if (overlay.classList.contains('hidden') === false) {
+        clearInterval(countdown);
+        overlay.style.opacity = '0';
+        setTimeout(()=>{
+          overlay.classList.add('hidden');
+          site.classList.add('show');
+          document.body.style.overflow = 'auto';
+          window.scrollTo({top:0,behavior:'smooth'});
+        },450);
+      }
+    }, (secondsToWait * 1000) + 5000); // +5 segundos de tolerância
   })();
 <\/script>
 </body>
@@ -281,7 +283,6 @@
       return html;
     }
 
-    // Limpa o preview objectUrl anterior
     function revokeLastPreview() {
       if (lastPreviewObjectUrl) {
         try { URL.revokeObjectURL(lastPreviewObjectUrl); } catch (e) {}
@@ -289,7 +290,6 @@
       }
     }
 
-    // Preview: cria Blob e define iframe.src = objectUrl
     btnPreview.addEventListener('click', () => {
       const ad = adInput.value.trim();
       const dl = dlInput.value.trim();
@@ -306,7 +306,6 @@
       showStatus('Preview gerado. Se o anúncio não carregar, exporte e abra o ficheiro localmente.');
     });
 
-    // Export: gera arquivo e dispara download
     btnExport.addEventListener('click', () => {
       const ad = adInput.value.trim();
       const dl = dlInput.value.trim();
@@ -328,7 +327,6 @@
       showStatus('Ficheiro exportado: ' + safeName, 5000);
     });
 
-    // Reset campos + preview
     btnReset.addEventListener('click', () => {
       adInput.value = '';
       dlInput.value = '';
@@ -337,10 +335,8 @@
       showStatus('Campos limpos');
     });
 
-    // Preview inicial
     previewFrame.srcdoc = '<!doctype html><html><body style="background:#000;color:#9aa3b2;display:flex;align-items:center;justify-content:center;height:100%"><div>Clique em Visualizar para gerar o preview</div></body></html>';
 
-    // Revoga quando sair da página
     window.addEventListener('unload', () => revokeLastPreview());
   </script>
 </body>
